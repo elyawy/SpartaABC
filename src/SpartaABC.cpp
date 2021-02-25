@@ -17,9 +17,30 @@ vector<double> simulateSequencesAndReturnSummaryStatistics(size_t randRootLength
 	double randAInsertionParam,
 	double randADeletionParam,
 	double randInsertRatio,
-	double randDeletionRatio) {
+	double randDeletionRatio,
+	bool isBurnIn) {
 	Simulator sim(randRootLength, randAInsertionParam, randADeletionParam, randInsertRatio, randDeletionRatio);
 	vector<string> simulatedSeqs = sim.simulateBasedOnTree(SpartaABC_options::_inputTreeFileName);// first of all- notice the change- now we get back vector<vector<string>>
+	vector<string> speciesNames = sim.leafNames;
+	if(!isBurnIn){
+		if(SpartaABC_options::_alignments_output > 0){
+			SpartaABC_options::decreaseAlignmentParam();
+
+			ofstream alignmentFile;
+			alignmentFile.open(SpartaABC_options::_outputAlignmnetsFile.c_str(), std::ios_base::app);
+			for (int i = 0; i < simulatedSeqs.size(); i++) {
+				alignmentFile << ">" << speciesNames[i] << endl;
+				alignmentFile << simulatedSeqs[i] << endl;
+			}
+			alignmentFile << endl;
+			alignmentFile.close();
+		}
+	} else {
+		ofstream alignmentFile;
+		alignmentFile.open(SpartaABC_options::_outputAlignmnetsFile, std::ofstream::out | std::ofstream::trunc);
+		alignmentFile.close();
+	}
+	
 	if (simulatedSeqs[0] == "too long")
 	{
 		vector<double> too_long;
@@ -30,7 +51,6 @@ vector<double> simulateSequencesAndReturnSummaryStatistics(size_t randRootLength
 	//summ_stats_wrapper simulatedSummStats(simulated_MSA, SpartaABC_options::_alignmentMode, SpartaABC_options::_similarityMode);
 	//vector<double> summStatsSim = simulatedSummStats.getSummStatsValsVector();
 	//cout << "is equal: " << is_equal(simulated_MSA_original.getAlignedSeqs(), simulated_MSA.getAlignedSeqs()) << endl;
-	
 	vector<double> summStatsSim = getStatVec(simulated_MSA);// upgraded summary sttatistics.
 	return summStatsSim;
 
@@ -184,7 +204,7 @@ int main(int argc, const char * argv[])
 		// 1. simulate along the tree
 		//SIMULATION!!!
 		vector<double> summStatsSim=simulateSequencesAndReturnSummaryStatistics(randRootLength, randAInsertionParam, randADeltetionParam,
-			randInsertRatio, randDeletionRatio);
+			randInsertRatio, randDeletionRatio, false);
 			
 		double euclideanDist;
 		//initilizing very large parameter if it exploded

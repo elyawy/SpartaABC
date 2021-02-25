@@ -104,6 +104,7 @@ bool Simulation::operator<( Simulation& rhs)
 		return false;
 }
 
+
 Simulation::~Simulation()
 {
 	msaVec.clear();

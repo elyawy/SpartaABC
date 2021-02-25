@@ -19,10 +19,13 @@ public:
 	static void initDefault();
 	static void getParamsFromFile(const string& paramFileName);
 	static void setRLPrior(int msa_min_len, int msa_max_len);
+	static void decreaseAlignmentParam();
 
 public:
 	//specific output config
-	static double _only_real_stats;
+	static bool _only_real_stats;
+	static int _alignments_output;
+	static string _outputAlignmnetsFile;
 	//summary statistics weigths (0 = not used, 1 for all = unweighted, any positive double = given weight, -1 = estimate [not implmented yet])
 	static double _wAvgGapSize; 
 	static double _wAvgUniqueGapSize;

@@ -123,7 +123,7 @@ bool Simulator::simulateAlongTree(tree::nodeP t,
 	if (t->isLeaf()) {
 		//here we added the upgraded leaves vector... //OI 17.3
 		simulated_sequences.push_back(father_seq);
-		
+		leafNames.push_back(t->name());
 	}
 	else {// internal node}
 		for (size_t i = 0; i < t->getNumberOfSons(); ++i) {

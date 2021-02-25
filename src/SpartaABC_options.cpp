@@ -1,6 +1,8 @@
 #include "SpartaABC_options.h"
 
-double SpartaABC_options::_only_real_stats;
+bool SpartaABC_options::_only_real_stats;
+int SpartaABC_options::_alignments_output;
+string SpartaABC_options::_outputAlignmnetsFile;
 
 double SpartaABC_options::_wAvgGapSize;
 double SpartaABC_options::_wAvgUniqueGapSize;
@@ -80,6 +82,8 @@ void SpartaABC_options::initOptions(const string& paramFileName){
 void SpartaABC_options::initDefault() {
 
 	_only_real_stats = false;
+	_alignments_output = 0;
+	_outputAlignmnetsFile = "";
 	// default values for the weight of each summary statistics.
 	// the weights are computed within the "distance" function
 	_wAvgGapSize = 1.0; // weight of the average gap size
@@ -147,6 +151,8 @@ void SpartaABC_options::initDefault() {
 	boomed_times = 0;
 	
 	Parameters::addParameter("_only_real_stats",_only_real_stats);
+	Parameters::addParameter("_alignments_output",_alignments_output);
+	Parameters::addParameter("_outputAlignmnetsFile",_outputAlignmnetsFile);
 
 	Parameters::addParameter("_wAvgGapSize",_wAvgGapSize);
 	Parameters::addParameter("_wAvgUniqueGapSize",_wAvgUniqueGapSize);
@@ -221,7 +227,9 @@ void SpartaABC_options::getParamsFromFile(const string& paramFileName)
 	params.close();
 
 	_only_real_stats = (Parameters::getInt("_only_real_stats") == 1) ? true : false;
-	
+	_alignments_output = Parameters::getInt("_alignments_output");
+	_outputAlignmnetsFile = Parameters::getString("_outputAlignmnetsFile");
+
 	_wAvgGapSize = Parameters::getFloat("_wAvgGapSize");
 	_wAvgUniqueGapSize = Parameters::getFloat("_wAvgUniqueGapSize");
 	_wMSALen = Parameters::getFloat("_wMSALen");
@@ -279,4 +287,8 @@ void SpartaABC_options::getParamsFromFile(const string& paramFileName)
 
 	_dawgSimulator = (Parameters::getInt("_dawgSimulator") == 1) ? true : false;
 
+}
+
+void SpartaABC_options::decreaseAlignmentParam(){
+	--_alignments_output;
 }

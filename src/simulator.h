@@ -21,6 +21,7 @@ class Simulator {
 	public:
 		explicit Simulator(size_t rootLength, double A_Insertion_param,double A_Deletion_param, double IR, double DR) : _rootLength(rootLength), _A_Insertion_param(A_Insertion_param), _A_Deletion_param(A_Deletion_param), _IR(IR), _DR(DR), _fastZInsertions(A_Insertion_param, MaxIndelSize), _fastZDeletions(A_Deletion_param, MaxIndelSize) {};
 		vector<string> simulateBasedOnTree(string treeFileName);
+		vector<string> leafNames;
 	private:
 		//returning bool since 30.3 //OI //temp return void- will ba back soon
 		bool simulateAlongTree(tree::nodeP t,

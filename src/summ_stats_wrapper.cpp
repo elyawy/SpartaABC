@@ -6,7 +6,8 @@ vector<double> simulateSequencesAndReturnSummaryStatistics(size_t randRootLength
 	double randAInsertonParam,
 	double randADeletionParam,
 	double randInsertRatio,
-	double randDeletionRatio);
+	double randDeletionRatio,
+	bool isBurnIn);
 
 vector<double> getStatVec(MSA &currMSA) {
 	vector<double> statVals;
@@ -81,7 +82,8 @@ vector<double> getWeightsVectorUsingSimulations() {
 				randAInsertionParam,
 				randADeltetionParam,
 				randInsertRatio,
-				randDeletionRatio);
+				randDeletionRatio,
+				true);
 			if (summStatistics[0]==-1)
 			{
 				real_numberOfSimulations--;
