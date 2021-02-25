@@ -1,5 +1,6 @@
 #include "SpartaABC_options.h"
 
+double SpartaABC_options::_only_real_stats;
 
 double SpartaABC_options::_wAvgGapSize;
 double SpartaABC_options::_wAvgUniqueGapSize;
@@ -77,6 +78,8 @@ void SpartaABC_options::initOptions(const string& paramFileName){
 
 // This function initiates the diffult values for all parameters
 void SpartaABC_options::initDefault() {
+
+	_only_real_stats = false;
 	// default values for the weight of each summary statistics.
 	// the weights are computed within the "distance" function
 	_wAvgGapSize = 1.0; // weight of the average gap size
@@ -143,6 +146,8 @@ void SpartaABC_options::initDefault() {
 	_dawgSimulator = false;
 	boomed_times = 0;
 	
+	Parameters::addParameter("_only_real_stats",_only_real_stats);
+
 	Parameters::addParameter("_wAvgGapSize",_wAvgGapSize);
 	Parameters::addParameter("_wAvgUniqueGapSize",_wAvgUniqueGapSize);
 	Parameters::addParameter("_wMSALen",_wMSALen);
@@ -215,6 +220,7 @@ void SpartaABC_options::getParamsFromFile(const string& paramFileName)
         Parameters::readParameters(params);
 	params.close();
 
+	_only_real_stats = (Parameters::getInt("_only_real_stats") == 1) ? true : false;
 	
 	_wAvgGapSize = Parameters::getFloat("_wAvgGapSize");
 	_wAvgUniqueGapSize = Parameters::getFloat("_wAvgUniqueGapSize");

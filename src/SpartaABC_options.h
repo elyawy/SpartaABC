@@ -21,6 +21,8 @@ public:
 	static void setRLPrior(int msa_min_len, int msa_max_len);
 
 public:
+	//specific output config
+	static double _only_real_stats;
 	//summary statistics weigths (0 = not used, 1 for all = unweighted, any positive double = given weight, -1 = estimate [not implmented yet])
 	static double _wAvgGapSize; 
 	static double _wAvgUniqueGapSize;

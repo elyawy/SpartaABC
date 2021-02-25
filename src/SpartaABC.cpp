@@ -48,11 +48,15 @@ int main(int argc, const char * argv[])
 		cout<<"SpartaABC requires a command file as an argument and no such file was provided."<<endl;
 		exit(1);
 	}
+
+	
 	
 	string spartaABCConfigFile = argv[1];
 	SpartaABC_options::initOptions(spartaABCConfigFile);
 	vector<double> summStatsReal = getStatVec(SpartaABC_options::_inputRealMSAFile);
 	
+
+
 	// in case summary statics file is inserted as argument
 	ifstream ss_file;
 	if (argc > 2)
@@ -96,7 +100,9 @@ int main(int argc, const char * argv[])
 	{
        cout<<"couldn't open output file: "<<SpartaABC_options::_outputGoodParamsFile<<endl;
        exit(1);
-	}
+	} 
+
+
 	//read template control of Indelible/Dawg into vector<string>
 	vector<string> templateCtrl;
 	if (SpartaABC_options::_dawgSimulator)
@@ -113,7 +119,17 @@ int main(int argc, const char * argv[])
 	//added my vector of res //OI 29.3
 	vector<vector<double>> allSimulationsResults;
 
+	string niceHeader = NiceHeader();
+	resFile << niceHeader << endl;
 	
+	//print statistics for input MSA
+	resFile << "input_msa\tN/A\tN/A\tN/A\tN/A\tN/A";
+	for (size_t i = 0; i < summStatsReal.size(); i++)
+	{
+		resFile << "\t" << summStatsReal[i];
+	}
+	resFile << endl;
+	if(SpartaABC_options::_only_real_stats) exit(0);
 
 	//in order to use weights
 	//cout << "computing weights" << endl;
@@ -121,17 +137,10 @@ int main(int argc, const char * argv[])
 	euclidean_distance euclideanDistObj;
 	euclideanDistObj.setWeightsVector(weightStats);
 
-	string niceHeader = NiceHeader();
-	resFile << niceHeader << endl;
 
-	//print statistics for input MSA
-	resFile << "input_msa\t?\t?\t?\t?\t?";
-	for (size_t i = 0; i < summStatsReal.size(); i++)
-	{
-		resFile << "\t" << summStatsReal[i];
-	}
 
-	resFile << endl;
+
+
 	resFile << "weights\t\t\t\t\t";
 	for (size_t i = 0; i < weightStats.size(); i++)
 	{
