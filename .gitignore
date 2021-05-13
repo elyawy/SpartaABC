@@ -8,5 +8,7 @@
 # Local History for Visual Studio Code
 .history/
 
+tests/*/results
+
 # executables
 SpartaABC
