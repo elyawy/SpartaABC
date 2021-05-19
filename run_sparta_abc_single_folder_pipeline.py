@@ -9,6 +9,7 @@ import os
 import subprocess
 import shutil
 import logging
+from  configuration import get_sparta_config
 logger = logging.getLogger(__name__)
 
 from Bio import AlignIO
@@ -39,7 +40,7 @@ def create_sims(data_name,verbose=1,res_dir='results/',
 				tree_filename='RAxML_tree.tree',
 				minIR = 0, maxIR = 0.05, num_alignments=200,
 				cwd='/groups/pupko/gilloe/spartaABC/code/abc_nn/',
-				op_sys='linux'):
+				op_sys='linux', num_simulations=100000, num_burnin=10000):
 	logger.info('Inside create_sims function.')
 
 	out_dir = res_dir + data_name
@@ -48,19 +49,26 @@ def create_sims(data_name,verbose=1,res_dir='results/',
 
 	logger.info('Writing conf files.')
 	for model in model_types:
-		with open(cwd+'sparta_conf_template.conf', "rt") as fin:
-			with open(out_dir+f'_{model}.conf', "wt") as fout:
-				for line in fin:
-					if line.startswith('_outputGoodParamsFile'):
-						line_out = f'_outputGoodParamsFile {out_dir}SpartaABC_data_name_id{model}.posterior_params\n'
-					elif line.startswith('_outputAlignmnetsFile'):
-						line_out = f'_outputAlignmnetsFile {out_dir}alignments_{model}.fasta\n'
-					elif line.startswith('_alignments_output'):
-						line_out = f'_alignments_output {num_alignments}\n'
-					else:
-						line_out = line.replace('results/', res_dir).replace('data/', data_dir).replace('data_name/', data_name).replace('model_name','ideq').replace('ref_msa.aa.fasta',msa_filename).replace('RAxML_tree.tree',tree_filename).replace('_minIRVal 0',f'_minIRVal {round(minIR,2)}').replace('_maxIRVal 0.05',f'_maxIRVal {round(maxIR,2)}').replace('_modelType eq', f'_modelType {model}')
-					fout.write(line_out)
-		logger.info(f"Wrote {out_dir+f'_{model}.conf'}. Based on {cwd+'sparta_conf_template.conf'}")
+		sparta_config = get_sparta_config()
+
+		sparta_config["_numSimulations"] = str(num_simulations)
+		sparta_config["_numBurnIn"] = str(num_burnin)
+
+		sparta_config['_outputGoodParamsFile'] = os.path.join(out_dir,f"SpartaABC_data_name_id{model}.posterior_params")
+		sparta_config['_outputAlignmnetsFile'] = os.path.join(out_dir,f"alignments_{model}.fasta")
+		sparta_config['_alignments_output'] = str(num_alignments)
+		sparta_config["_inputRealMSAFile"] = os.path.join(res_dir,msa_filename)
+		sparta_config["_inputTreeFileName"] = os.path.join(res_dir,tree_filename)
+		sparta_config["_minIRVal"] = str(round(minIR,2))
+		sparta_config["_maxIRVal"] = str(round(maxIR,2))
+		sparta_config["_modelType"] = model
+
+		with open(out_dir+f'_{model}.conf', "wt") as fout:
+			for key in sparta_config:
+				to_write = f'{key} {sparta_config[key]}\n'
+				fout.write(to_write)
+
+		logger.info(f"Wrote {out_dir}_{model}.conf. Based on {cwd}sparta_conf_template.conf")
 			
 	stat = "didn't run"
 	if op_sys=='linux':
@@ -88,7 +96,7 @@ def create_sims_from_data(data_name,ow_flag=False,verbose=1,
 						  tree_filename='RAxML_tree.tree',
 						  minIR = 0, maxIR = 0.05, num_alignments=200,
 						  cwd='/groups/pupko/gilloe/spartaABC/code/abc_nn/',
-						  op_sys='linux'):
+						  op_sys='linux', num_simulations=100000, num_burnin=10000):
 
 	if not res_dir.endswith('/'):
 		res_dir += '/'
@@ -105,7 +113,7 @@ def create_sims_from_data(data_name,ow_flag=False,verbose=1,
 					msa_filename=msa_filename,
 					tree_filename=tree_filename,
 					minIR=minIR,maxIR=maxIR, num_alignments=num_alignments,
-					cwd=cwd,op_sys=op_sys)
+					cwd=cwd,op_sys=op_sys, num_simulations=num_simulations, num_burnin=num_burnin)
 	except:
 		if ow_flag:
 			shutil.rmtree(os.getcwd() + '/'+res_dir + data_name)

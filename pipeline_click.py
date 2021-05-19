@@ -8,9 +8,19 @@ Created on Wed Sep 30 13:02:55 2020
 import click
 import os
 import logging
+import sys
+import warnings
+
+import tree_cleaner as treec
+import summarize_results as sumres
+import run_sparta_abc_single_folder_pipeline as runs
+import msa_bias_corrector as corrector
+
+import infer_abc_params_single_folder_pipeline as sinf
 
 # set to environment variable 'DEBUG' to 1 for full list of runtime parameters.
-DEBUG = True if os.environ.get("DEBUG") == "0" else False
+
+DEBUG = True if os.environ.get("DEBUG","0") == "0" else False
 
 
 pipeline_path = os.path.dirname(os.path.abspath(__file__))
@@ -25,7 +35,7 @@ os.chdir(pipeline_path)
 
 def pipeline(skip_config, res_dir, clean_run,msa_filename,tree_filename,pipeline_path='/bioseq/spartaabc/pipeline/',
 			 minIR=0,maxIR=0.05,op_sys='linux',verbose=0, filter_p=(0.9,15),
-			 b_num_top=100, num_alignments=200, submodel_params="amino"):
+			 b_num_top=100, num_alignments=200, submodel_params="amino", num_simulations=100000, num_burnin=10000):
 	
 	res_dir = os.path.join(res_dir, '')
 	if os.path.isdir(res_dir + "logs/"):
@@ -35,10 +45,8 @@ def pipeline(skip_config, res_dir, clean_run,msa_filename,tree_filename,pipeline
 		print("creating log directory")
 	log_dir = res_dir + "logs/"
 	log_id = pipeline_path.split(r"/")[-2]
-	import sys
 	if verbose!=2:
 		if not sys.warnoptions:
-			import warnings
 			warnings.simplefilter("ignore")
 	logging.basicConfig(filename=log_dir+log_id+'.log',level=logging.INFO,
 					format='%(asctime)s %(name)s %(levelname)-8s %(message)s',
@@ -46,24 +54,21 @@ def pipeline(skip_config, res_dir, clean_run,msa_filename,tree_filename,pipeline
 	logger = logging.getLogger(__name__)
 
 	
-	import tree_cleaner as treec
-	
 
-	import summarize_results as sumres
 	
 	treec.fix_tree(res_dir, tree_filename)
 
 	if skip_config["sparta"]:
-		import run_sparta_abc_single_folder_pipeline as runs
-
 		runs.create_sims_from_data(data_name='', ow_flag=False,
 							verbose=verbose, res_dir=res_dir,
 							data_dir=log_dir,
 							msa_filename=msa_filename,
 							tree_filename=tree_filename,
 							minIR=minIR,maxIR=maxIR, num_alignments=num_alignments,
-							cwd=pipeline_path, 
-							op_sys=op_sys) # Running spartaABC C++ code to get simulations (through another python script)
+							cwd=pipeline_path,
+							op_sys=op_sys,
+							num_simulations=num_simulations,
+							num_burnin=num_burnin) # Running spartaABC C++ code to get simulations (through another python script)
 		if clean_run:
 			os.remove(f'{res_dir}_eq.conf')
 			os.remove(f'{res_dir}_dif.conf')
@@ -80,8 +85,6 @@ def pipeline(skip_config, res_dir, clean_run,msa_filename,tree_filename,pipeline
 				return
 
 	if skip_config["correct_bias"]:
-		import msa_bias_corrector as corrector
-
 		corrector.apply_correction(skip_config=skip_config,res_path=res_dir, clean_run=clean_run,
 								pipeline_path=pipeline_path,
 								tree_file=tree_filename,filter_p=filter_p, submodel_params=submodel_params)
@@ -98,7 +101,6 @@ def pipeline(skip_config, res_dir, clean_run,msa_filename,tree_filename,pipeline
 				return	
 
 	if skip_config["inference"]:
-		import infer_abc_params_single_folder_pipeline as sinf
 
 		sinf.calc_stats(csv_out_path=res_dir,lib='msa_corrected',path='' ,
 				verbose = verbose , models_list=['ideq','iddif'],
@@ -144,11 +146,15 @@ def pipeline(skip_config, res_dir, clean_run,msa_filename,tree_filename,pipeline
 @click.option('--inv-prop', default=0.25, help='Specify invariable sites proportion.')
 @click.option('--gamma-shape', default=0.50, help='Specify shape parameter for the gamma distribution.')
 @click.option('--gamma-cats', default=10, help='Specify number of categories to use in the discrete gamma approximation.')
+@click.option('--nsim', default=100000, help='Specify number of simulation performed by SpartaABC.', hidden=DEBUG)
+@click.option('--nburnin', default=10000, help='Specify number of simulation performed by SpartaABC.', hidden=DEBUG)
+
 def pipeline_click(path,msaf,trf,ver,minr,maxr, bn,
 				   numalign,
 				   skip_s, skip_m, skip_i, skip_bc,
 				   filterp, nonclean_run, 
-				   mode, submodel, freq, rates, inv_prop, gamma_shape, gamma_cats):
+				   mode, submodel, freq, rates, inv_prop, gamma_shape, gamma_cats,
+				   nsim, nburnin):
 	
 	skip_config = {
 		"sparta": skip_s and skip_m and skip_bc and skip_i,
@@ -179,6 +185,8 @@ def pipeline_click(path,msaf,trf,ver,minr,maxr, bn,
 	b_num_top=bn
 	num_alignments = numalign
 	filter_p = filterp
+	num_simulations = nsim
+	num_burnin = nburnin
 
 	pipeline(skip_config=skip_config,
 			 pipeline_path=pipeline_path,
@@ -189,7 +197,9 @@ def pipeline_click(path,msaf,trf,ver,minr,maxr, bn,
 			 op_sys=op_sys,verbose=verbose,
 			 b_num_top=b_num_top,
 			 num_alignments=num_alignments,
-			 filter_p=filter_p, submodel_params=submodel_params_)
+			 filter_p=filter_p, submodel_params=submodel_params_,
+			 num_simulations=num_simulations,
+			 num_burnin=num_burnin)
 
 	
 #%% main

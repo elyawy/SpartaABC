@@ -55,7 +55,7 @@ string NiceHeader() {
 
 vector<double> getWeightsVectorUsingSimulations() {
 	// simulate datasets from the prior
-	const size_t numberOfSimulations = 10000;//temp, suppose to be 10,000
+	const size_t numberOfSimulations = SpartaABC_options::_numBurnIn;//temp, suppose to be 10,000
 	size_t real_numberOfSimulations = numberOfSimulations;
 	vector<double> summaryStatisticsSum;
 	vector<double> summaryStatisticsSquareSum;

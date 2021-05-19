@@ -26,6 +26,10 @@ public:
 	static bool _only_real_stats;
 	static int _alignments_output;
 	static string _outputAlignmnetsFile;
+
+	static int _numSimulations;
+	static int _numBurnIn;
+
 	//summary statistics weigths (0 = not used, 1 for all = unweighted, any positive double = given weight, -1 = estimate [not implmented yet])
 	static double _wAvgGapSize; 
 	static double _wAvgUniqueGapSize;

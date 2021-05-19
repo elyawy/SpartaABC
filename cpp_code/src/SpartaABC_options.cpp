@@ -4,6 +4,9 @@ bool SpartaABC_options::_only_real_stats;
 int SpartaABC_options::_alignments_output;
 string SpartaABC_options::_outputAlignmnetsFile;
 
+int SpartaABC_options::_numSimulations;
+int SpartaABC_options::_numBurnIn;
+
 double SpartaABC_options::_wAvgGapSize;
 double SpartaABC_options::_wAvgUniqueGapSize;
 double SpartaABC_options::_wMSALen; 
@@ -80,6 +83,8 @@ void SpartaABC_options::initOptions(const string& paramFileName){
 
 // This function initiates the diffult values for all parameters
 void SpartaABC_options::initDefault() {
+	_numSimulations = 100000;
+	_numBurnIn = 10000;
 
 	_only_real_stats = false;
 	_alignments_output = 0;
@@ -150,6 +155,10 @@ void SpartaABC_options::initDefault() {
 	_dawgSimulator = false;
 	boomed_times = 0;
 	
+	Parameters::addParameter("_numSimulations",_numSimulations);
+	Parameters::addParameter("_numBurnIn",_numBurnIn);
+
+
 	Parameters::addParameter("_only_real_stats",_only_real_stats);
 	Parameters::addParameter("_alignments_output",_alignments_output);
 	Parameters::addParameter("_outputAlignmnetsFile",_outputAlignmnetsFile);
@@ -225,6 +234,9 @@ void SpartaABC_options::getParamsFromFile(const string& paramFileName)
 	if(params.good())
         Parameters::readParameters(params);
 	params.close();
+
+	_numSimulations = Parameters::getInt("_numSimulations");
+	_numBurnIn = Parameters::getInt("_numBurnIn");
 
 	_only_real_stats = (Parameters::getInt("_only_real_stats") == 1) ? true : false;
 	_alignments_output = Parameters::getInt("_alignments_output");

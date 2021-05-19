@@ -124,15 +124,15 @@ int main(int argc, const char * argv[])
 
 
 	//read template control of Indelible/Dawg into vector<string>
-	vector<string> templateCtrl;
-	if (SpartaABC_options::_dawgSimulator)
-	{
-		templateCtrl = readIndelibleTemplateControlFile(SpartaABC_options::_dawgTemplateControlFile);
-	}
-	else
-	{
-		templateCtrl = readIndelibleTemplateControlFile(SpartaABC_options::_indelibleTemplateControlFile);
-	}
+	// vector<string> templateCtrl;
+	// if (SpartaABC_options::_dawgSimulator)
+	// {
+	// 	templateCtrl = readIndelibleTemplateControlFile(SpartaABC_options::_dawgTemplateControlFile);
+	// }
+	// else
+	// {
+	// 	templateCtrl = readIndelibleTemplateControlFile(SpartaABC_options::_indelibleTemplateControlFile);
+	// }
 
 	int numberOfCollectedSamples = 0;
 	int numberSimulations = 0;
@@ -171,7 +171,7 @@ int main(int argc, const char * argv[])
 	vector<bool> model_choice = current_model_choice(SpartaABC_options::_modelType);
 
 	double currentCutOffValue = 1000.0; // very large
-	size_t totalNumberOfSpartaTests = 100000;//temp ,suppose to be 100,000
+	size_t totalNumberOfSpartaTests = SpartaABC_options::_numSimulations;//temp ,suppose to be 100,000
 	while(totalNumberOfSimulations < totalNumberOfSpartaTests)
 	{
 		totalNumberOfSimulations++;

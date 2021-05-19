@@ -17,6 +17,9 @@ from sklearn import model_selection
 from scipy.stats import pearsonr
 
 
+from  configuration import get_sparta_config, get_indelible_config
+
+
 
 
 #%%
@@ -39,72 +42,49 @@ def prepare_indelible_control_file(res_path,tree_filename,indelible_out_file_nam
 								   indelible_template_file_name,
 								   submodel_params):
 	"""
-	prepare indelible control file
+	prepare indelible control file for simulating substitutions
 	"""
-	with open(pipeline_path+indelible_template_file_name,'r') as f:
-		indelible_temp = f.read()
+	indelible_config = get_indelible_config()
+
+
 	with open(res_path+tree_filename,'r') as f:
 		tree = f.read().rstrip()
 
+	indelible_config["[TREE]"] = f'treename {tree}'
+	indelible_config["[PARTITIONS]"] = f'partitionname\n[treename modelname {max_sim_seq_len}]'
+	# note: do not change 'outputname1'
+	indelible_config["[EVOLVE]"] = f'partitionname {num_msa} outputname1' + " " # note: indlible requires space at last command.
 
 	if submodel_params["mode"] == "amino":
-		mode_to_replace = '[TYPE] AMINOACID 2'
-		mode_str = '[TYPE] AMINOACID 2'
-		submodel_to_replace = '[submodel] WAG'
-		submodel_str = '[submodel] WAG'
-		freq_to_replace = "[statefreq]   0.25  0.25  0.25  0.25"
-		freqs_str = ""
-		rates_to_replace = "[rates]         0.25 0.50 10"
-		rates_str = ""
-	else:
+		indelible_config["[TYPE]"] = 'AMINOACID 2'
+		indelible_config["[submodel]"] = 'WAG'
+		del indelible_config['[statefreq]']
+		del indelible_config['[rates]']
+
+	if submodel_params["mode"] == "nuc":
+		indelible_config["[TYPE]"] = 'NUCLEOTIDE 2'
+
 		if submodel_params["submodel"] == "GTR":
-			sub_rates_str = f"{submodel_params['rates'][0]:.9f} {submodel_params['rates'][1]:.9f} {submodel_params['rates'][2]:.9f} {submodel_params['rates'][3]:.9f} {submodel_params['rates'][4]:.9f}"
-			freqs_str = f"{submodel_params['freq'][0]:.6f} {submodel_params['freq'][1]:.6f} {submodel_params['freq'][2]:.6f} {submodel_params['freq'][3]:.6f}"
-			rates_str = f"{submodel_params['inv_prop']} {submodel_params['gamma_shape']} {submodel_params['gamma_cats']}"
+			gtr_params = ' '.join([f"{submodel_params['rates'][ind]:.9f}" for ind in range(5)])
+			frequencies = ' '.join([f"{submodel_params['freq'][ind]:.6f}" for ind in range(4)])
+			rates = f"{submodel_params['inv_prop']} {submodel_params['gamma_shape']} {submodel_params['gamma_cats']}"
 
+			indelible_config["[submodel]"] = f'{submodel_params["submodel"]} {gtr_params}'
+			indelible_config["[rates]"] = rates
+			indelible_config["[statefreq]"] = frequencies
+
+		if submodel_params["submodel"] == "JC":
+			indelible_config["[submodel]"] = f'{submodel_params["submodel"]}'
 			
-			mode_to_replace = '[TYPE] AMINOACID 2'
-			mode_str = '[TYPE] NUCLEOTIDE 2'
+			del indelible_config['[statefreq]']
+			del indelible_config['[rates]']
 
-			submodel_to_replace = '[submodel] WAG'
-			submodel_str = f'[submodel] {submodel_params["submodel"]} {sub_rates_str}'
-
-			freq_to_replace = "[statefreq]   0.25  0.25  0.25  0.25"
-			freqs_str = f"[statefreq] {freqs_str}"
-
-			rates_to_replace = "[rates]         0.25 0.50 10"
-			rates_str = f"[rates] {rates_str}"
-		else:
-			mode_to_replace = '[TYPE] AMINOACID 2'
-			mode_str = '[TYPE] NUCLEOTIDE 2'
-
-			submodel_to_replace = '[submodel] WAG'
-			submodel_str = f'[submodel] {submodel_params["submodel"]}'
-			
-			freq_to_replace = "[statefreq]   0.25  0.25  0.25  0.25"
-			freqs_str = ""
-			rates_to_replace = "[rates]         0.25 0.50 10"
-			rates_str = ""
+	with open(res_path+indelible_out_file_name,'w') as fout:
+		for key in indelible_config:
+			to_write = f'{key} {indelible_config[key]}\n'
+			fout.write(to_write)
 
 
-
-	tree_to_replace = '(A:0.1,B:0.1);'
-	num_sim_str_to_replace = 'partitionname1 2000 outputname1'
-	num_sim_str = f'partitionname1 {num_msa} outputname1'
-	seq_len_to_replace = 'treename1 modelname 3000'
-	seq_len_str = f'treename1 modelname {max_sim_seq_len}'
-	
-	with open(res_path+indelible_out_file_name,'w') as f:
-		out_str = indelible_temp.replace(tree_to_replace,tree)
-		out_str = out_str.replace(num_sim_str_to_replace,num_sim_str)
-		out_str = out_str.replace(seq_len_to_replace, seq_len_str)
-		out_str = out_str.replace(mode_to_replace, mode_str)
-		out_str = out_str.replace(submodel_to_replace, submodel_str)
-		out_str = out_str.replace(freq_to_replace, freqs_str)
-		out_str = out_str.replace(rates_to_replace, rates_str)
-
-		f.write(out_str)
-		
 def run_indelible(res_path,logger=None):
 	"""
 	runs indelible.
@@ -135,23 +115,21 @@ def parse_indelible_output(res_path):
 
 def prepare_sparta_conf_sumstat(res_path, pipeline_path, sum_stat_file_name='tmp_sum_stat.csv',msa_filename='realigned_msa_tmp.fasta',conf_filename_out='sum_stat.conf',conf_file_template='sparta_conf_template.conf'):
 	"""
-	prepare a configuration file for summary stats only
-	of input msa
+	prepare a configuration file for running sparta so that it only calculate the summary statistics
+	of the input msa without simulating.
 	"""
-	with open(f'{pipeline_path}{conf_file_template}','r') as f:
-		conf_str = f.read()
+	sparta_config = get_sparta_config()
 
-	conf_str = conf_str.replace('_indelibleTemplateControlFile control_indelible_template.txt',
-								f'_indelibleTemplateControlFile {pipeline_path}control_indelible_template.txt')
-	conf_str = conf_str.replace('_only_real_stats 0', '_only_real_stats 1')
-	conf_str = conf_str.replace('SpartaABC_data_name_model_name.posterior_params',sum_stat_file_name)
-	tmp_ind1 = conf_str.find('_inputRealMSAFile')
-	tmp_ind2 = tmp_ind1 + conf_str[tmp_ind1:].find('\n')
-	conf_str = conf_str.replace(conf_str[tmp_ind1:tmp_ind2],f'_inputRealMSAFile results/{msa_filename}')
-	conf_str = conf_str.replace('results/', res_path)
+	# sparta_config['_indelibleTemplateControlFile'] = os.path.join(pipeline_path, "control_indelible_template.txt")
+	sparta_config['_outputGoodParamsFile'] = f'{os.path.join(res_path,sum_stat_file_name)}'
+	sparta_config["_inputRealMSAFile"] = f'{os.path.join(res_path,msa_filename)}'
+	sparta_config["_only_real_stats"] = "1"
+
 	
-	with open(f'{res_path}{conf_filename_out}','w') as f:
-		conf_str = f.write(conf_str)
+	with open(f'{res_path}{conf_filename_out}','w') as fout:
+		for key in sparta_config:
+				to_write = f'{key} {sparta_config[key]}\n'
+				fout.write(to_write)
 
 def process_raw_msa(raw_msa):
 	split_msa = raw_msa.strip().split('\n')
