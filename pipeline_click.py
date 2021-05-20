@@ -11,11 +11,10 @@ import logging
 import sys
 import warnings
 
-import tree_cleaner as treec
+from validation import tree_validator, msa_validator
 import summarize_results as sumres
 import run_sparta_abc_single_folder_pipeline as runs
 import msa_bias_corrector as corrector
-
 import infer_abc_params_single_folder_pipeline as sinf
 
 # set to environment variable 'DEBUG' to 1 for full list of runtime parameters.
@@ -53,10 +52,15 @@ def pipeline(skip_config, res_dir, clean_run,msa_filename,tree_filename,pipeline
 					datefmt='%Y-%m-%d %H:%M:%S')  
 	logger = logging.getLogger(__name__)
 
-	
+	validator_t = tree_validator()
+	validator_m = msa_validator()
+	try:
+		validator_t.validate_tree(res_dir, tree_filename)
+		validator_m.validate_msa(res_dir, msa_filename, submodel_params["mode"])
+	except Exception as message:
+		print(message)
+		return
 
-	
-	treec.fix_tree(res_dir, tree_filename)
 
 	if skip_config["sparta"]:
 		runs.create_sims_from_data(data_name='', ow_flag=False,

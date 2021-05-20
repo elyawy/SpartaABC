@@ -15,7 +15,7 @@ import numpy as np
 from sklearn import linear_model 
 from sklearn import model_selection
 from scipy.stats import pearsonr
-
+from tqdm import tqdm
 
 from  configuration import get_sparta_config, get_indelible_config
 
@@ -360,7 +360,7 @@ def msa_bias_correction(skip_config, clean_run, res_path,
 		realigned_msa_tmp_filename = 'realigned_msa_tmp.fasta'
 		# use indelible simul results to replace sparta alignment res.
 		print("Running MAFFT...")
-		for i in range(num_msa):
+		for i in tqdm(range(num_msa)):
 			raw_sim_msa = align_list[i]
 			indelible_msa = indelible_msa_full_list[i]
 
