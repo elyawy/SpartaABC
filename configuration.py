@@ -74,3 +74,12 @@ def get_sparta_config():
 
 
 	return sparta_config
+
+class PipelineConfig:
+	
+	def __init__(self):
+		# init in first block
+		self.skip_config = {}
+		...
+
+pipeline_config = PipelineConfig()

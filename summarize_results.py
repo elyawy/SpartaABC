@@ -13,10 +13,12 @@ def remove_files(res_path,to_remove):
 		os.remove(f'{res_path}{i}')
 
 
-def get_stats_v2(results_file_path, file_name, minIR, maxIR, minAI, maxAI, msa_path, clean_run, verbose=1, chosen_model_field_name='bayes_class',
+def get_stats(results_file_path, file_name, minIR, maxIR, minAI, maxAI, msa_path, clean_run, verbose=1, chosen_model_field_name='bayes_class',
 			  rl_template='m_@@@_RL', ir_template='m_@@@_IR', ai_template='m_@@@_AIR', 
 			  dr_template='m_@@@_DR', ad_template='m_@@@_ADR'):
-
+	'''
+	Organize the results of the inference step in a summary file
+	'''
 	df = pd.read_csv(results_file_path+file_name)
 
 	if clean_run:
@@ -26,10 +28,11 @@ def get_stats_v2(results_file_path, file_name, minIR, maxIR, minAI, maxAI, msa_p
 			"SpartaABC_msa_corrected_ideq.posterior_params"
 		])
 
+	
 	chosen_model = df[chosen_model_field_name].values[0]  # either 'eq' for SIM or 'dif' for RIM
 	stats = {'chosen model': chosen_model.replace('eq','SIM').replace('dif','RIM')}  # add model name
 	
-	# SIM('eq') lasso / mean
+	# prepare SIM summary
 
 	rl_field_name = rl_template.replace('@@@', 'eq')
 	ir_field_name = ir_template.replace('@@@', 'eq')
@@ -44,7 +47,7 @@ def get_stats_v2(results_file_path, file_name, minIR, maxIR, minAI, maxAI, msa_p
 				('A_ID', df[ai_field_name].values[0])]
 
 
-	# RIM('dif') lasso / mean
+	# prepare RIM summary
 	rl_field_name = rl_template.replace('@@@', 'dif')
 	ir_field_name = ir_template.replace('@@@', 'dif')
 	dr_field_name = dr_template.replace('@@@', 'dif')

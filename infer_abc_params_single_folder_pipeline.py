@@ -269,6 +269,9 @@ def data_preperation(df, df_meta=None, verbose=1, test_fraction=0.25,
 	return X_train, Y_train, X_val, Y_val, X_test, Y_test, X_data, Y_train_reg, Y_test_reg, Y_val_reg, Y_train_reg_mean, Y_train_reg_std
 
 def NNModel_class(input_shape,num_classes=2):
+	from keras.layers import Input, Dense
+	from keras.models import Model
+
 	X_input = Input(input_shape)  # Define the input placeholder as a tensor with shape input_shape. Think of this as your input image!
 	X = Dense(input_shape[0], activation='relu', name='fc1')(X_input)
 	X = Dense(10, activation='relu', name='fc2')(X)
@@ -279,6 +282,10 @@ def NNModel_class(input_shape,num_classes=2):
 	return model
 
 def NNModel_reg(input_shape,num_param=5):
+	from keras.layers import Input, Dense
+	from keras.models import Model
+
+
 	X_input = Input(input_shape)  # Define the input placeholder as a tensor with shape input_shape. Think of this as your input image!
 	X = Dense(input_shape[0], activation='relu', name='fc1')(X_input)
 	X = Dense(12, activation='relu', name='fc2')(X)
@@ -518,11 +525,9 @@ def nn_class_and_reg(df,df_meta,models_list=['ideq','iddif'],
 
 def calc_stats(csv_out_path='results_small/infer_abc_params/',lib='data_name',path='',     
 			   verbose = 0, models_list=['ideq','iddif'],
-			   b_num_top=100):
+			   b_num_top=100, clean_run=True):
 	"""
-	Inputs: 
-		lib - lib path # need to modify
-		models_list - currently supported 'ideq','iddif'
+	infer abc model parameters from the simulations.
 	"""
 	
 	
@@ -532,31 +537,40 @@ def calc_stats(csv_out_path='results_small/infer_abc_params/',lib='data_name',pa
 	logger.info('started calc stats '+lib)
 	df, df_meta = load_lib_data(path=csv_out_path,lib=lib,models_list=['ideq','iddif'] ,size_th=1E6,rel_path='')
 
-
 	df = df[(df.DISTANCE != 100000)] #High distance that in new version is a sign of too long run
 	if df is None:
 		logging.warning(f'skipping {lib} due to small size of file.')
 		return
 	logger.info('ran load_lib_data '+lib)
 	df_sort = sort_df_by_dist(df=df)
-	# calculating bayes factor
-	# bayes_factor, bayes_prop = msf.calc_bayes_factor(df_sort=df_sort,num_top=b_num_top)
+	# calculating bayes factor (to determine what better fits the data SIM or RIM)
 	bayes_factor, bayes_prop = calc_bayes_factor(df_sort=df_sort,num_top=b_num_top)
 	logger.info('ran calc_bayes_factor '+lib)
 	res_dict['abc_num_top'] = [b_num_top]
 	res_dict['bayes_factor'] = [bayes_factor]
 	res_dict['bayes_prop'] = [bayes_prop]
 	res_dict['bayes_class'] = ['eq'] if bayes_prop<0.5 else ['dif']
-	logger.info('done bayes class '+lib)    
+	logger.info('done bayes class '+lib)
 	
-	#ABC mean
+	# ABC mean inference.
 	tmp_res_dict = calc_abc_mean_stats(df_sort=df_sort, b_num_top=b_num_top) 
 	res_dict.update(tmp_res_dict)
 	logger.info('done ABC mean '+lib)
-	#ABC ridge
-	tmp_res_dict = calc_abc_ridge_stats(df_sort=df_sort,df_meta=df_meta,b_num_top=b_num_top)
-	res_dict.update(tmp_res_dict)
-	logger.info('done ABC ridge '+lib)
+	if not clean_run:
+		
+		#ABC ridge and lasso inference.
+		tmp_res_dict = calc_abc_ridge_stats(df_sort=df_sort,df_meta=df_meta,b_num_top=b_num_top)
+		res_dict.update(tmp_res_dict)
+		logger.info('done ABC ridge '+lib)
+
+		#nn
+		tmp_res_dict = nn_class_and_reg(df=df,df_meta=df_meta,
+										models_list=models_list,
+										num_epochs = 200,
+										batch_size=4096,verbose=verbose)
+		res_dict.update(tmp_res_dict)
+		logger.info('done nn class. and reg. '+lib)
+
 
 	df_res = pd.DataFrame(res_dict)
 	df_res = df_res.reindex(sorted(df_res.columns), axis=1)

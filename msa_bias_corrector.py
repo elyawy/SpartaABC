@@ -336,6 +336,7 @@ def msa_bias_correction(skip_config, clean_run, res_path,
 				 model_type,filter_p,submodel_params,
 				 indelible_out_file_name='control.txt'):
 
+	# get spartaABC MSAs.
 	align_list, max_sim_seq_len = parse_alignments_file(res_path+real_alignments_filename)
 	logger.info(f'Maximal sequence length for model {model_type}: {max_sim_seq_len}')
 	
@@ -344,7 +345,7 @@ def msa_bias_correction(skip_config, clean_run, res_path,
 	
 	df_mafft = None
 	if skip_config["mafft"]:
-
+		# use indelible to add substitutions to the spartaABC MSAs.
 		prepare_indelible_control_file(res_path,tree_filename,indelible_out_file_name,
 									   num_msa,max_sim_seq_len,pipeline_path,
 									   indelible_template_file_name, submodel_params)
@@ -354,7 +355,8 @@ def msa_bias_correction(skip_config, clean_run, res_path,
 			f.write("\n\n".join(indelible_msa_full_list))
 		
 		logger.info(f'Number of indelible MSAs for model {model_type}: {len(indelible_msa_full_list)}')
-
+		
+		# prepare spartaABC configuration file for mode that only return summary statistics for the input MSA(without simulations).
 		prepare_sparta_conf_sumstat(res_path, pipeline_path)
 
 		realigned_msa_tmp_filename = 'realigned_msa_tmp.fasta'
@@ -363,7 +365,7 @@ def msa_bias_correction(skip_config, clean_run, res_path,
 		for i in tqdm(range(num_msa)):
 			raw_sim_msa = align_list[i]
 			indelible_msa = indelible_msa_full_list[i]
-
+			# combine spartABC indels with indelible substitutions to a single MSA.
 			unaligned_sub_sim_msa, indelible_sparta_msa = add_subs_to_sim_msa(raw_sim_msa,indelible_msa)
 			# write all unaligned msas to file.
 			continuous_write(interation=i,
@@ -383,7 +385,7 @@ def msa_bias_correction(skip_config, clean_run, res_path,
 			continuous_write(interation=i,
 							file_path=f'{res_path}{f"all_realigned_sims_{model_type}.txt"}',
 							to_write=realigned_msa)
-			
+			# get summary statistics of realigned MSAs.
 			run_sparta_sum_stat(input_msa=realigned_msa,
 								pipeline_path=pipeline_path,
 								conf_file_path=res_path+'sum_stat.conf')
@@ -406,6 +408,7 @@ def msa_bias_correction(skip_config, clean_run, res_path,
 				return
 	sim_res_file_path = f'{res_path}SpartaABC_data_name_id{model_type}.posterior_params'
 	correct_mafft_bias(res_path,sim_res_file_path,df_mafft, num_msa,model_type,filter_p, alignment_flag=False)
+	# remove intermediate files.
 	if clean_run:
 		remove_large_files(res_path,to_remove=[
 			f"all_realigned_sims_{model_type}.txt",
@@ -421,7 +424,12 @@ def msa_bias_correction(skip_config, clean_run, res_path,
 	
 #%%
 def apply_correction(skip_config, clean_run,res_path, pipeline_path, tree_file,filter_p, submodel_params="amino"):
-
+	'''
+	The spartaABC program creates real alignments, while empirical alignments are aligned using programs like MAFFT
+	that tend to overalign and therefore bias the summary statistics. here we correct the alignment bias by realigning
+	few simulations using MAFFT and using ML to learn the difference. afterwards we apply a correction to all simulations
+	to have summary statistics resembling empirical MSA.
+	'''
 	res_path = res_path
 	# The following files should be on the res_path 
 
@@ -431,7 +439,8 @@ def apply_correction(skip_config, clean_run,res_path, pipeline_path, tree_file,f
 	# The following files should be on the pipeline_path
 	indelible_template_file_name = 'control_indelible_template.txt'
 
-	for model_type in ['dif',"eq"]:
+	# apply correction on each of the models: dif->RIM, eq->SIM.
+	for model_type in ['dif',"eq"]: 
 		real_alignments_filename = f'alignments_{model_type}.fasta'
 		msa_bias_correction(skip_config, clean_run,res_path,
 						real_alignments_filename,tree_filename,
