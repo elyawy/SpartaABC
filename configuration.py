@@ -75,11 +75,45 @@ def get_sparta_config():
 
 	return sparta_config
 
-class PipelineConfig:
-	
-	def __init__(self):
-		# init in first block
-		self.skip_config = {}
-		...
 
-pipeline_config = PipelineConfig()
+class general_config:
+
+	def __init__(self,pipeline_path, results_path, tree_file_name, msa_file_name, skip_config, clean_run, verbose, op_sys):
+		self.pipeline_path = pipeline_path
+		self.results_path = results_path
+		self.msa_file_name = msa_file_name
+		self.tree_file_name = tree_file_name
+		self.skip_config = skip_config
+		self.clean_run = clean_run
+		self.verbose = verbose
+		self.op_sys = op_sys
+
+class simulations_config:
+	def __init__(self, simulations_num, burnin_num ,min_ir,max_ir, alignments_num):
+		self.simulations_num = simulations_num
+		self.burnin_num = burnin_num
+		self.min_ir = min_ir
+		self.max_ir = max_ir
+		self.alignments_num = alignments_num
+
+
+class correction_config:
+	def __init__(self, model_parameters, filter_p):
+		self.model_parameters = model_parameters
+		self.filter_p = filter_p
+
+
+class inference_config:
+	def __init__(self, number_top):
+		self.number_top = number_top
+
+
+if __name__ == "__main__":
+	sparta_config = get_sparta_config()
+	sparta_config["_inputRealMSAFile"] = "/home/elyawy/development/Msc/Thesis/Working_dir/SpartaABC/results/msa.fasta"
+	sparta_config["_inputTreeFileName"] = "/home/elyawy/development/Msc/Thesis/Working_dir/SpartaABC/results/RAxML_tree.tree"
+	with open("test.conf",'w') as f:
+		for key in get_sparta_config():
+			to_write = f'{key} {sparta_config[key]}\n'
+			f.write(to_write)
+

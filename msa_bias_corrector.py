@@ -37,17 +37,16 @@ def parse_alignments_file(real_alignments_path):
 	max_sim_seq_len = len(max(lines.split('\n'),key=len))
 	return align_list, max_sim_seq_len
 
-def prepare_indelible_control_file(res_path,tree_filename,indelible_out_file_name,
-								   num_msa,max_sim_seq_len,pipeline_path,
-								   indelible_template_file_name,
-								   submodel_params):
+def prepare_indelible_control_file(general_conf, correction_conf, num_msa, max_sim_seq_len):
 	"""
 	prepare indelible control file for simulating substitutions
 	"""
 	indelible_config = get_indelible_config()
 
+	res_path = general_conf.results_path
+	submodel_params = correction_conf.model_parameters
 
-	with open(res_path+tree_filename,'r') as f:
+	with open(os.path.join(res_path, general_conf.tree_file_name),'r') as f:
 		tree = f.read().rstrip()
 
 	indelible_config["[TREE]"] = f'treename {tree}'
@@ -79,7 +78,7 @@ def prepare_indelible_control_file(res_path,tree_filename,indelible_out_file_nam
 			del indelible_config['[statefreq]']
 			del indelible_config['[rates]']
 
-	with open(res_path+indelible_out_file_name,'w') as fout:
+	with open(os.path.join(res_path,'control.txt'),'w') as fout:
 		for key in indelible_config:
 			to_write = f'{key} {indelible_config[key]}\n'
 			fout.write(to_write)
@@ -97,10 +96,10 @@ def run_indelible(res_path,logger=None):
 	subprocess.run(cmd, shell=True)
 	indelible_msa_list = parse_indelible_output(res_path)
 	# clean indelible files
-	os.remove(f'{res_path}outputname1_TRUE.phy')
-	os.remove(f'{res_path}outputname1.fas')
-	os.remove(f'{res_path}trees.txt')
-	os.remove(f'{res_path}LOG.txt')
+	os.remove(os.path.join(res_path,'outputname1_TRUE.phy'))
+	os.remove(os.path.join(res_path,'outputname1.fas'))
+	os.remove(os.path.join(res_path,'trees.txt'))
+	os.remove(os.path.join(res_path,'LOG.txt'))
 
 	return indelible_msa_list
 
@@ -108,12 +107,12 @@ def parse_indelible_output(res_path):
 	"""
 	reads the output of indelible and parse it to list of msas
 	"""
-	with open(res_path+'outputname1.fas','r') as f:
+	with open(os.path.join(res_path,'outputname1.fas'),'r') as f:
 		indelible_subs = f.read()
 	indelible_msa_list = re.split('\n *\n', indelible_subs)
 	return indelible_msa_list[:-1]
 
-def prepare_sparta_conf_sumstat(res_path, pipeline_path, sum_stat_file_name='tmp_sum_stat.csv',msa_filename='realigned_msa_tmp.fasta',conf_filename_out='sum_stat.conf',conf_file_template='sparta_conf_template.conf'):
+def prepare_sparta_conf_sumstat(res_path, sum_stat_file_name='tmp_sum_stat.csv',msa_filename='realigned_msa_tmp.fasta',conf_filename_out='sum_stat.conf'):
 	"""
 	prepare a configuration file for running sparta so that it only calculate the summary statistics
 	of the input msa without simulating.
@@ -126,7 +125,7 @@ def prepare_sparta_conf_sumstat(res_path, pipeline_path, sum_stat_file_name='tmp
 	sparta_config["_only_real_stats"] = "1"
 
 	
-	with open(f'{res_path}{conf_filename_out}','w') as fout:
+	with open(os.path.join(res_path, conf_filename_out),'w') as fout:
 		for key in sparta_config:
 				to_write = f'{key} {sparta_config[key]}\n'
 				fout.write(to_write)
@@ -182,10 +181,10 @@ def reconstruct_msa(res_path, unaligned_msa, output_name,  align_mode,logger=Non
 
 	tmp_file = "temp_unaligned.fasta"
 	
-	with open(f'{res_path}{tmp_file}', 'w') as f:
+	with open(os.path.join(res_path,tmp_file), 'w') as f:
 		f.write(unaligned_msa)
 
-	cmd = f'mafft --auto --{align_mode} {res_path+tmp_file}'
+	cmd = f'mafft --auto --{align_mode} {os.path.join(res_path,tmp_file)}'
 	
 	if logger!=None:
 		logger.info(f'Starting MAFFT. Executed command is:\n{cmd}')
@@ -193,7 +192,7 @@ def reconstruct_msa(res_path, unaligned_msa, output_name,  align_mode,logger=Non
 	
 	results = restructure_mafft_output(results)
 	# TODO: remove file safely
-	os.remove(res_path+tmp_file)
+	os.remove(os.path.join(res_path,tmp_file))
 	return results
 	
 def run_sparta_sum_stat(input_msa, pipeline_path, conf_file_path):
@@ -203,7 +202,7 @@ def run_sparta_sum_stat(input_msa, pipeline_path, conf_file_path):
 	with open(msa_path,'w') as f:
 		f.write(input_msa)
 	#TODO in linux - remove exe
-	cmd = f'{pipeline_path}SpartaABC {conf_file_path}'
+	cmd = os.path.join(pipeline_path, f'SpartaABC {conf_file_path}') 
 	subprocess.run(cmd, shell=True)
 	os.remove(msa_path)
 	
@@ -274,7 +273,7 @@ def correct_mafft_bias(res_path, sim_res_file_path, df_mafft, num_msa,model_type
 	logger.info(msa_correct_qual_dict)
 
 	sumstat_to_use = [x for x in msa_correct_qual_dict if msa_correct_qual_dict[x]>=correction_th]
-	with open(res_path + f"used_features_{model_type}.txt", 'w') as f:
+	with open(os.path.join(res_path, f"used_features_{model_type}.txt"), 'w') as f:
 		f.write("\n".join(sumstat_to_use))
 
 
@@ -314,7 +313,7 @@ def correct_mafft_bias(res_path, sim_res_file_path, df_mafft, num_msa,model_type
 	out_str = df_head_string+"\n"+df_meta2_string+df_trans_string+"".join(string_tmp[-7:])
 	out_str = out_str.replace('\r','')
 	del string_tmp
-	file_name_out = f'{res_path}SpartaABC_msa_corrected_id{model_type}.posterior_params'
+	file_name_out = os.path.join(res_path, f'SpartaABC_msa_corrected_id{model_type}.posterior_params')
 	with open(file_name_out,'w') as f:
 		f.write(out_str)
 		
@@ -328,36 +327,31 @@ def continuous_write(interation, file_path, to_write):
 
 def remove_large_files(res_path,to_remove):
 	for i in to_remove:
-		os.remove(f'{res_path}{i}')
+		os.remove(os.path.join(res_path,i))
 
-def msa_bias_correction(skip_config, clean_run, res_path,
-				 real_alignments_filename,tree_filename,
-				 pipeline_path,indelible_template_file_name,
-				 model_type,filter_p,submodel_params,
-				 indelible_out_file_name='control.txt'):
+def msa_bias_correction(general_conf, correction_conf, model_type="", real_alignments_filename=""):
 
+	res_path = general_conf.results_path
 	# get spartaABC MSAs.
-	align_list, max_sim_seq_len = parse_alignments_file(res_path+real_alignments_filename)
+	align_list, max_sim_seq_len = parse_alignments_file(os.path.join(res_path, real_alignments_filename))
 	logger.info(f'Maximal sequence length for model {model_type}: {max_sim_seq_len}')
 	
 	num_msa = len(align_list)
 	logger.info(f'Number of simulated MSAs  for model {model_type}: {max_sim_seq_len}')
 	
 	df_mafft = None
-	if skip_config["mafft"]:
+	if general_conf.skip_config["mafft"]:
 		# use indelible to add substitutions to the spartaABC MSAs.
-		prepare_indelible_control_file(res_path,tree_filename,indelible_out_file_name,
-									   num_msa,max_sim_seq_len,pipeline_path,
-									   indelible_template_file_name, submodel_params)
+		prepare_indelible_control_file(general_conf, correction_conf, num_msa, max_sim_seq_len)
 		indelible_msa_full_list = run_indelible(res_path)
 
-		with open(f"sparta_aligned_{model_type}.fasta",'w') as f:
+		with open(os.path.join(res_path,f"sparta_aligned_{model_type}.fasta"),'w') as f:
 			f.write("\n\n".join(indelible_msa_full_list))
 		
 		logger.info(f'Number of indelible MSAs for model {model_type}: {len(indelible_msa_full_list)}')
 		
 		# prepare spartaABC configuration file for mode that only return summary statistics for the input MSA(without simulations).
-		prepare_sparta_conf_sumstat(res_path, pipeline_path)
+		prepare_sparta_conf_sumstat(res_path)
 
 		realigned_msa_tmp_filename = 'realigned_msa_tmp.fasta'
 		# use indelible simul results to replace sparta alignment res.
@@ -369,32 +363,32 @@ def msa_bias_correction(skip_config, clean_run, res_path,
 			unaligned_sub_sim_msa, indelible_sparta_msa = add_subs_to_sim_msa(raw_sim_msa,indelible_msa)
 			# write all unaligned msas to file.
 			continuous_write(interation=i,
-							file_path=f'{res_path}{f"all_unaligned_sims_{model_type}.txt"}',
+							file_path=os.path.join(res_path,f"all_unaligned_sims_{model_type}.txt"),
 							to_write=unaligned_sub_sim_msa)
 			continuous_write(interation=i,
-							file_path=f'{res_path}{f"indelible_sparta_{model_type}.txt"}',
+							file_path=os.path.join(res_path,f"indelible_sparta_{model_type}.txt"),
 							to_write=indelible_sparta_msa)
 
 			# run mafft on unaligned sequences.
 			realigned_msa = reconstruct_msa(res_path=res_path, 
 											unaligned_msa=unaligned_sub_sim_msa,
 											output_name=realigned_msa_tmp_filename,
-											align_mode=submodel_params["mode"],
+											align_mode=correction_conf.model_parameters["mode"],
 											logger=None)
 			# write all realigned msas to file.
 			continuous_write(interation=i,
-							file_path=f'{res_path}{f"all_realigned_sims_{model_type}.txt"}',
+							file_path=os.path.join(res_path,f"all_realigned_sims_{model_type}.txt"),
 							to_write=realigned_msa)
 			# get summary statistics of realigned MSAs.
 			run_sparta_sum_stat(input_msa=realigned_msa,
-								pipeline_path=pipeline_path,
-								conf_file_path=res_path+'sum_stat.conf')
-			
-			df_tmp = pd.read_csv(f'{res_path}tmp_sum_stat.csv',delimiter='\t')
+								pipeline_path=general_conf.pipeline_path,
+								conf_file_path=os.path.join(res_path,'sum_stat.conf'))
+			os.path.join(res_path,'')
+			df_tmp = pd.read_csv(os.path.join(res_path,'tmp_sum_stat.csv'),delimiter='\t')
 			df_mafft = df_tmp if i==0 else pd.concat([df_mafft,df_tmp],ignore_index=True) # TODO: save as separate file.
-			os.remove(f'{res_path}tmp_sum_stat.csv')
-		os.remove(f'{res_path}sum_stat.conf')
-		os.remove(f'{res_path}control.txt')
+			os.remove(os.path.join(res_path,'tmp_sum_stat.csv'))
+		os.remove(os.path.join(res_path,'sum_stat.conf'))
+		os.remove(os.path.join(res_path,'control.txt'))
 		print("Done.")
 		df_mafft.to_csv(f"mafft_sum_stats_{model_type}.csv", sep="\t", index=False)
 		logger.info(f'Done with MAFFT')
@@ -402,14 +396,14 @@ def msa_bias_correction(skip_config, clean_run, res_path,
 		logger.info("Skipping Mafft.")
 		if df_mafft is None:
 			try:
-				df_mafft = pd.read_csv(res_path+f"mafft_sum_stats_{model_type}.csv", sep="\t")
+				df_mafft = pd.read_csv(os.path.join(res_path,f"mafft_sum_stats_{model_type}.csv"), sep="\t")
 			except Exception:
 				logging.error("No mafft results found, please provide mafft_sum_stats file")
 				return
-	sim_res_file_path = f'{res_path}SpartaABC_data_name_id{model_type}.posterior_params'
-	correct_mafft_bias(res_path,sim_res_file_path,df_mafft, num_msa,model_type,filter_p, alignment_flag=False)
+	sim_res_file_path = os.path.join(res_path,f'SpartaABC_data_name_id{model_type}.posterior_params')
+	correct_mafft_bias(res_path,sim_res_file_path,df_mafft, num_msa,model_type,correction_conf.filter_p, alignment_flag=False)
 	# remove intermediate files.
-	if clean_run:
+	if general_conf.clean_run:
 		remove_large_files(res_path,to_remove=[
 			f"all_realigned_sims_{model_type}.txt",
 			f"all_unaligned_sims_{model_type}.txt",
@@ -423,29 +417,17 @@ def msa_bias_correction(skip_config, clean_run, res_path,
 	logger.info(f'Corrected MSA bias for model {model_type}')
 	
 #%%
-def apply_correction(skip_config, clean_run,res_path, pipeline_path, tree_file,filter_p, submodel_params="amino"):
+def apply_correction(general_conf, correction_conf):
 	'''
 	The spartaABC program creates real alignments, while empirical alignments are aligned using programs like MAFFT
 	that tend to overalign and therefore bias the summary statistics. here we correct the alignment bias by realigning
 	few simulations using MAFFT and using ML to learn the difference. afterwards we apply a correction to all simulations
 	to have summary statistics resembling empirical MSA.
 	'''
-	res_path = res_path
-	# The following files should be on the res_path 
-
-	tree_filename = tree_file
-
-	pipeline_path = pipeline_path
-	# The following files should be on the pipeline_path
-	indelible_template_file_name = 'control_indelible_template.txt'
-
 	# apply correction on each of the models: dif->RIM, eq->SIM.
 	for model_type in ['dif',"eq"]: 
 		real_alignments_filename = f'alignments_{model_type}.fasta'
-		msa_bias_correction(skip_config, clean_run,res_path,
-						real_alignments_filename,tree_filename,
-						pipeline_path,indelible_template_file_name,
-						model_type,filter_p,submodel_params,indelible_out_file_name='control.txt')
+		msa_bias_correction(general_conf, correction_conf, model_type=model_type, real_alignments_filename=real_alignments_filename)
 
 
 

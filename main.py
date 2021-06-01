@@ -13,10 +13,10 @@ import warnings
 
 from validation import tree_validator, msa_validator
 import summarize_results as sumres
-import run_sparta_abc_single_folder_pipeline as runs
+import simulations as runs
 import msa_bias_corrector as corrector
-import infer_abc_params_single_folder_pipeline as infer_abc
-from configuration import pipeline_config
+import inference as infer_abc
+from configuration import general_config, simulations_config, correction_config, inference_config
 # set to environment variable 'DEBUG' to 1 for full list of runtime parameters.
 
 DEBUG = True if os.environ.get("DEBUG","0") == "0" else False
@@ -31,19 +31,17 @@ os.chdir(pipeline_path)
 
 
 
-def pipeline(skip_config, res_dir, clean_run,msa_filename,tree_filename,pipeline_path='/bioseq/spartaabc/pipeline/',
-			 minIR=0,maxIR=0.05,op_sys='linux',verbose=0, filter_p=(0.9,15),
-			 b_num_top=100, num_alignments=200, submodel_params="amino", num_simulations=100000, num_burnin=10000):
+def pipeline(general_conf,simulations_conf,correction_conf,inference_conf):
 	# setup the logging system
-	res_dir = os.path.join(res_dir, '')
+	res_dir = os.path.join(general_conf.results_path, '')
 	if os.path.isdir(res_dir + "logs/"):
 		print("using existing log directory")
 	else:
 		os.mkdir(res_dir + "logs/")
 		print("creating log directory")
 	log_dir = res_dir + "logs/"
-	log_id = pipeline_path.split(r"/")[-2]
-	if verbose!=2:
+	log_id = general_conf.pipeline_path.split(r"/")[-2]
+	if general_conf.verbose!=2:
 		if not sys.warnoptions:
 			warnings.simplefilter("ignore")
 	logging.basicConfig(filename=log_dir+log_id+'.log',level=logging.INFO,
@@ -55,28 +53,19 @@ def pipeline(skip_config, res_dir, clean_run,msa_filename,tree_filename,pipeline
 	validator_t = tree_validator()
 	validator_m = msa_validator()
 	try:
-		validator_t.validate_tree(res_dir, tree_filename)
-		validator_m.validate_msa(res_dir, msa_filename, submodel_params["mode"])
+		validator_t.validate_tree(res_dir, general_conf.tree_file_name)
+		validator_m.validate_msa(res_dir, general_conf.msa_file_name, correction_conf.model_parameters["mode"])
 	except Exception as message:
 		print(message)
 		return
 
 	
-	if skip_config["sparta"]:
+	if general_conf.skip_config["sparta"]:
 		#Run the SpartaABC c++ program through a wrapper python file.
-		runs.create_sims_from_data(data_name='', ow_flag=False,
-							verbose=verbose, res_dir=res_dir,
-							data_dir=log_dir,
-							msa_filename=msa_filename,
-							tree_filename=tree_filename,
-							minIR=minIR,maxIR=maxIR, num_alignments=num_alignments,
-							cwd=pipeline_path,
-							op_sys=op_sys,
-							num_simulations=num_simulations,
-							num_burnin=num_burnin) 
-		if clean_run:
-			os.remove(f'{res_dir}_eq.conf')
-			os.remove(f'{res_dir}_dif.conf')
+		runs.create_sims_from_data(general_conf, simulations_conf) 
+		if general_conf.clean_run:
+			os.remove(os.path.join(res_dir, '_eq.conf'))
+			os.remove(os.path.join(res_dir, '_dif.conf'))
 	else:
 		logger.info("Skipping Sparta.")
 		#check if sparta params file exists
@@ -88,13 +77,11 @@ def pipeline(skip_config, res_dir, clean_run,msa_filename,tree_filename,pipeline
 				print("Could not find SpartaABC params file.")
 				logger.error("Could not find SpartaABC params file.\nPlease provide the params files or run the full pipeline")
 				return
+	
 
-
-	if skip_config["correct_bias"]:
+	if general_conf.skip_config["correct_bias"]:
 		#Correct the alignment bias by realigning few simulations using MAFFT and using ML to learn the corection.
-		corrector.apply_correction(skip_config=skip_config,res_path=res_dir, clean_run=clean_run,
-								pipeline_path=pipeline_path,
-								tree_file=tree_filename,filter_p=filter_p, submodel_params=submodel_params)
+		corrector.apply_correction(general_conf, correction_conf)
 	else:
 		logger.info("Skipping msa bias correction.")
 		#check if sparta params file exists
@@ -106,9 +93,9 @@ def pipeline(skip_config, res_dir, clean_run,msa_filename,tree_filename,pipeline
 				print("Could not find corrected params file.")
 				logger.error("Could not find corrected params file.\nPlease provide the param files or run without the --skip-bc option")
 				return	
+	return
 
-
-	if skip_config["inference"]:
+	if general_conf.skip_config["inference"]:
 		# infer abc model parameters from the corrected simulations.
 		infer_abc.calc_stats(csv_out_path=res_dir,lib='msa_corrected',path='' ,
 				verbose = verbose , models_list=['ideq','iddif'],
@@ -147,7 +134,7 @@ def pipeline(skip_config, res_dir, clean_run,msa_filename,tree_filename,pipeline
 @click.option('--skip-i', default=False, is_flag=True ,help='Skip inference step', hidden=DEBUG)
 @click.option('--skip-bc', default=False, is_flag=True ,help='Skip MSA bias correction', hidden=DEBUG)
 @click.option('--filterp', default=(0.9,15) ,help='MSA bias correction filtering parameter. Default: 0.9 15', hidden=DEBUG)
-@click.option('--nonclean-run', default=False, is_flag=True ,help='Do not clean files at runtime', hidden=DEBUG)
+@click.option('--nonclean', default=False, is_flag=True ,help='Do not clean files at runtime', hidden=DEBUG)
 @click.option('--mode', type=click.Choice(['amino', 'nuc']), required=True, help='Specify type of alignment, proteins or DNA.')
 @click.option('--submodel', type=click.Choice(['JC', 'GTR']), default='JC', help='Specify substitution model.')
 @click.option('--freq', default=(0.25,0.25,0.25,0.25), help='Specify rate parameters.')
@@ -160,10 +147,9 @@ def pipeline(skip_config, res_dir, clean_run,msa_filename,tree_filename,pipeline
 def pipeline_click(path,msaf,trf,ver,minr,maxr, bn,
 				   numalign,
 				   skip_s, skip_m, skip_i, skip_bc,
-				   filterp, nonclean_run, 
+				   filterp, nonclean, 
 				   mode, submodel, freq, rates, inv_prop, gamma_shape, gamma_cats,
 				   nsim, nburnin):
-	print(nonclean_run)
 	# ('not' present because of previous configurations logic)
 	skip_config = {
 		"sparta": not skip_s and  not skip_m and not skip_bc and not skip_i,
@@ -171,7 +157,9 @@ def pipeline_click(path,msaf,trf,ver,minr,maxr, bn,
 		"inference": not skip_i ,
 		"correct_bias": not skip_bc and not skip_i
 	}
-	pipeline_config.A = "Howdy"
+
+
+
 	submodel_params_ = {
 		"mode": mode,
 		"submodel": submodel,
@@ -182,33 +170,17 @@ def pipeline_click(path,msaf,trf,ver,minr,maxr, bn,
 		"gamma_cats": gamma_cats
 	}
 
-	verbose = ver
-	res_dir = path #results path
-	clean_run = not nonclean_run # clean run is true when nonclean is false ('not' present because of previous configurations logic)
+	clean_run = not nonclean # clean run is true when nonclean is false ('not' present because of previous configurations logic)
 	op_sys= 'linux'
-	msa_filename = msaf
-	tree_filename = trf
-	minIR=minr
-	maxIR=maxr
-	verbose = ver
-	b_num_top=bn
 	num_alignments = numalign
-	filter_p = filterp
-	num_simulations = nsim
-	num_burnin = nburnin
 
-	pipeline(skip_config=skip_config,
-			 pipeline_path=pipeline_path,
-			 res_dir=res_dir, clean_run=clean_run,
-			 msa_filename=msa_filename,
-			 tree_filename=tree_filename,
-			 minIR=minIR,maxIR=maxIR,
-			 op_sys=op_sys,verbose=verbose,
-			 b_num_top=b_num_top,
-			 num_alignments=num_alignments,
-			 filter_p=filter_p, submodel_params=submodel_params_,
-			 num_simulations=num_simulations,
-			 num_burnin=num_burnin)
+
+	general_conf = general_config(pipeline_path, path , trf, msaf, skip_config, clean_run, ver ,op_sys)
+	simulations_conf = simulations_config(nsim, nburnin, minr, maxr, num_alignments)
+	correction_conf = correction_config(submodel_params_, filterp)
+	inference_conf = inference_config(bn)
+
+	pipeline(general_conf,simulations_conf,correction_conf,inference_conf)
 
 	
 #%% main
