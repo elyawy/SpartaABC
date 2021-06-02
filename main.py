@@ -69,7 +69,7 @@ def pipeline(general_conf,simulations_conf,correction_conf,inference_conf):
 	else:
 		logger.info("Skipping Sparta.")
 		#check if sparta params file exists
-		for model in ["eq", "dif"]:
+		for model in general_conf.available_models:
 			if os.path.isfile(res_dir + f'SpartaABC_data_name_id{model}.posterior_params'):
 				print("retrieved existing params files.")
 				logger.info("retrieved existing params files.")
@@ -85,7 +85,7 @@ def pipeline(general_conf,simulations_conf,correction_conf,inference_conf):
 	else:
 		logger.info("Skipping msa bias correction.")
 		#check if sparta params file exists
-		for model in ["eq", "dif"]:
+		for model in general_conf.available_models:
 			if os.path.isfile(res_dir + f'SpartaABC_msa_corrected_id{model}.posterior_params'):
 				print("retrieved corrected param files.")
 				logger.info("retrieved corrected param files.")
@@ -93,13 +93,11 @@ def pipeline(general_conf,simulations_conf,correction_conf,inference_conf):
 				print("Could not find corrected params file.")
 				logger.error("Could not find corrected params file.\nPlease provide the param files or run without the --skip-bc option")
 				return	
-	return
+	
 
 	if general_conf.skip_config["inference"]:
 		# infer abc model parameters from the corrected simulations.
-		infer_abc.calc_stats(csv_out_path=res_dir,lib='msa_corrected',path='' ,
-				verbose = verbose , models_list=['ideq','iddif'],
-				b_num_top=b_num_top, clean_run=clean_run) # Inferring parameters from the C++ simulations
+		infer_abc.calc_stats(general_conf, inference_conf) # Inferring parameters from the C++ simulations
 	else:
 		logger.info("Skipping inference step.")
 		#check if sparta params file exists
@@ -112,9 +110,7 @@ def pipeline(general_conf,simulations_conf,correction_conf,inference_conf):
 			return	
 	
 	# return inference results summary.
-	sumres.get_stats(results_file_path=res_dir,file_name='msa_corrected_res.csv',
-						minIR=minIR, maxIR=maxIR, minAI=0, maxAI=2, msa_path=res_dir+msa_filename,
-						clean_run=clean_run,verbose=verbose)
+	sumres.get_stats(general_conf,result_file_name='msa_corrected_res.csv')
 	
 	return
 
@@ -172,19 +168,18 @@ def pipeline_click(path,msaf,trf,ver,minr,maxr, bn,
 
 	clean_run = not nonclean # clean run is true when nonclean is false ('not' present because of previous configurations logic)
 	op_sys= 'linux'
-	num_alignments = numalign
+	model_list = ['eq', 'dif'] # eq->SIM , dif->RIM
+	lib = "msa_corrected"
+	size_threshold = 1E6
 
-
-	general_conf = general_config(pipeline_path, path , trf, msaf, skip_config, clean_run, ver ,op_sys)
-	simulations_conf = simulations_config(nsim, nburnin, minr, maxr, num_alignments)
+	general_conf = general_config(pipeline_path, path , trf, msaf, model_list ,skip_config, clean_run, ver ,op_sys)
+	simulations_conf = simulations_config(nsim, nburnin, minr, maxr, numalign)
 	correction_conf = correction_config(submodel_params_, filterp)
-	inference_conf = inference_config(bn)
+	inference_conf = inference_config(lib, bn, size_threshold)
 
 	pipeline(general_conf,simulations_conf,correction_conf,inference_conf)
 
-	
-#%% main
-		
+
 if __name__ == '__main__':
 	pipeline_click()
 
