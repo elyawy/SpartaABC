@@ -425,7 +425,7 @@ def apply_correction(general_conf, correction_conf):
 	to have summary statistics resembling empirical MSA.
 	'''
 	# apply correction on each of the models: dif->RIM, eq->SIM.
-	for model_type in ['dif',"eq"]: 
+	for model_type in general_conf.available_models: 
 		real_alignments_filename = f'alignments_{model_type}.fasta'
 		msa_bias_correction(general_conf, correction_conf, model_type=model_type, real_alignments_filename=real_alignments_filename)
 

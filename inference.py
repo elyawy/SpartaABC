@@ -22,13 +22,12 @@ import random
 
 
 ### Load lib data
-def load_lib_data(path,lib='data_name',models_list=['ideq','iddif'] ,size_th=1E6,rel_path=''):
-	for i in range(len(models_list)):
-		if rel_path == '':
-			file_name = path + 'SpartaABC_'+ lib + '_' + models_list[i] + '.posterior_params'
-		else:
-			file_name = path + rel_path + lib + '/SpartaABC_'+ lib + '_' + models_list[i] + '.posterior_params'
-		if os.stat(file_name).st_size<size_th:
+def load_lib_data(general_conf, inference_conf):
+	res_path = general_conf.results_path
+	for idx, model in enumerate(general_conf.available_models):
+
+		file_name = os.path.join(res_path, f'SpartaABC_{inference_conf.lib}_id{model}.posterior_params')
+		if os.stat(file_name).st_size < inference_conf.size_threshold:
 			logging.warning(f'{file_name} too small.')
 			return None,None
 		with open(file_name) as f:
@@ -41,11 +40,11 @@ def load_lib_data(path,lib='data_name',models_list=['ideq','iddif'] ,size_th=1E6
 			if weights.iloc[0][col] == 0:
 				num_dropped += 1
 				df_tmp.drop(col, axis=1, inplace=True)
-		logger.info(f'dropped {num_dropped} features from {models_list[i]} model')
+		logger.info(f'dropped {num_dropped} features from {model} model')
 
-		df_tmp['model_id'] = i
-		df_tmp['model_name'] = models_list[i]
-		if (i==0):
+		df_tmp['model_id'] = idx
+		df_tmp['model_name'] = model
+		if (idx==0):
 			df = df_tmp[(df_tmp.IR - df_tmp.DR) == 0]
 			n_drop = len(df_tmp[(df_tmp.IR - df_tmp.DR) != 0])
 		else:
@@ -100,13 +99,13 @@ def plot_bayes_factor_vs_n(df_sort,b_num_vec,
 	
 	return
 
-def abc_param_estimation(df_sort,num_top=100,models_list=['ideq','iddif'],
-						 mode_name_col_name='model_name'):
-	# Assumes for now 2 models
-	df_model1_res = df_sort[df_sort[mode_name_col_name] == models_list[0]].head(num_top).mean()
-	df_model2_res = df_sort[df_sort[mode_name_col_name] == models_list[1]].head(num_top).mean()
+def abc_param_estimation(df_sort,num_top,models_list):
+	mode_name_col_name='model_name'
+	df_models = {}
+	for model in models_list:
+		df_models[model] = (df_sort[df_sort[mode_name_col_name] == model].head(num_top).mean())
 	df_model_combo_res = df_sort.head(num_top).mean()
-	return df_model1_res, df_model2_res, df_model_combo_res
+	return df_models, df_model_combo_res
 
 ### https://scikit-learn.org/stable/auto_examples/model_selection/plot_confusion_matrix.html#sphx-glr-auto-examples-model-selection-plot-confusion-matrix-py
 
@@ -302,10 +301,8 @@ def res_vec_to_metrics(Y_pred,reg_pred = 1E-3):
 	return Y_pred_class, Y_pred_arg, Y_pred_fac
 
 
-#%% Calculating ABC mean, ABC ridge, nn, len_stats (TODO)
 
-def calc_abc_mean_stats(df_sort,
-						b_num_top=100,bayes_combo_flag=False):
+def calc_abc_mean_stats(df_sort, b_num_top, models_list):
 	"""
 	Inputs:
 		df_sort - df sorted by distance
@@ -313,12 +310,12 @@ def calc_abc_mean_stats(df_sort,
 		res_dict including calculated metrics
 	"""
 	res_dict={}
-	
-	df_model1_res, df_model2_res, df_model_combo_res = abc_param_estimation(df_sort=df_sort)
+
+	df_models, df_model_combo_res = abc_param_estimation(df_sort, b_num_top, models_list)
 	param_list = ['RL', 'AIR', 'ADR', 'IR', 'DR']
 	eq_model_std = df_sort[df_sort['model_id'] == 0].head(b_num_top)[param_list].std()
 	dif_model_std = df_sort[df_sort['model_id'] == 1].head(b_num_top)[param_list].std()
-	# if bayes_combo_flag: #combining eq and dif
+
 	df_bayes_res = df_model_combo_res
 	b_std = df_sort.head(b_num_top)[param_list].std()
 
@@ -328,19 +325,18 @@ def calc_abc_mean_stats(df_sort,
 					'm_combo_RL_std':[b_std['RL']],'m_combo_AIR_std':[b_std['AIR']],
 					'm_combo_ADR_std':[b_std['ADR']],'m_combo_IR_std':[b_std['IR']],
 					'm_combo_DR_std':[b_std['DR']],
-					'm_eq_RL':[df_model1_res.RL], 'm_eq_AIR':[df_model1_res.AIR],
-					'm_eq_ADR':[df_model1_res.ADR],'m_eq_IR':[df_model1_res.IR],
-					'm_eq_DR':[df_model1_res.DR],
-					'm_dif_RL':[df_model2_res.RL], 'm_dif_AIR':[df_model2_res.AIR],
-					'm_dif_ADR':[df_model2_res.ADR],'m_dif_IR':[df_model2_res.IR],
-					'm_dif_DR':[df_model2_res.DR],
+					'm_eq_RL':[df_models['eq'].RL], 'm_eq_AIR':[df_models['eq'].AIR],
+					'm_eq_ADR':[df_models['eq'].ADR],'m_eq_IR':[df_models['eq'].IR],
+					'm_eq_DR':[df_models['eq'].DR],
+					'm_dif_RL':[df_models['dif'].RL], 'm_dif_AIR':[df_models['dif'].AIR],
+					'm_dif_ADR':[df_models['dif'].ADR],'m_dif_IR':[df_models['dif'].IR],
+					'm_dif_DR':[df_models['dif'].DR],
 					'm_eq_RL_std':[eq_model_std['RL']],'m_eq_AIR_std':[eq_model_std['AIR']],
 					'm_eq_ADR_std':[eq_model_std['ADR']],'m_eq_IR_std':[eq_model_std['IR']],
 					'm_eq_DR_std':[eq_model_std['DR']],
 					'm_dif_RL_std':[dif_model_std['RL']],'m_dif_AIR_std':[dif_model_std['AIR']],
 					'm_dif_ADR_std':[dif_model_std['ADR']],'m_dif_IR_std':[dif_model_std['IR']],
 					'm_dif_DR_std':[dif_model_std['DR']],}
-
 	return res_dict
 
 
@@ -523,58 +519,53 @@ def nn_class_and_reg(df,df_meta,models_list=['ideq','iddif'],
 
 
 
-def calc_stats(csv_out_path='results_small/infer_abc_params/',lib='data_name',path='',     
-			   verbose = 0, models_list=['ideq','iddif'],
-			   b_num_top=100, clean_run=True):
+def calc_stats(general_conf, inference_conf):
 	"""
 	infer abc model parameters from the simulations.
 	"""
-	
-	
 	res_dict = {}
-	res_dict['dir_name'] = [lib]
+	res_dict['dir_name'] = [inference_conf.lib]
 
-	logger.info('started calc stats '+lib)
-	df, df_meta = load_lib_data(path=csv_out_path,lib=lib,models_list=['ideq','iddif'] ,size_th=1E6,rel_path='')
+	logger.info('started calc stats '+inference_conf.lib)
+	df, df_meta = load_lib_data(general_conf, inference_conf)
 
 	df = df[(df.DISTANCE != 100000)] #High distance that in new version is a sign of too long run
 	if df is None:
-		logging.warning(f'skipping {lib} due to small size of file.')
+		logging.warning(f'skipping {inference_conf.lib} due to small size of file.')
 		return
-	logger.info('ran load_lib_data '+lib)
+	logger.info('ran load_lib_data '+inference_conf.lib)
 	df_sort = sort_df_by_dist(df=df)
 	# calculating bayes factor (to determine what better fits the data SIM or RIM)
-	bayes_factor, bayes_prop = calc_bayes_factor(df_sort=df_sort,num_top=b_num_top)
-	logger.info('ran calc_bayes_factor '+lib)
-	res_dict['abc_num_top'] = [b_num_top]
+	bayes_factor, bayes_prop = calc_bayes_factor(df_sort=df_sort,num_top=inference_conf.number_top)
+	logger.info('ran calc_bayes_factor '+ inference_conf.lib)
+	res_dict['abc_num_top'] = [inference_conf.number_top]
 	res_dict['bayes_factor'] = [bayes_factor]
 	res_dict['bayes_prop'] = [bayes_prop]
 	res_dict['bayes_class'] = ['eq'] if bayes_prop<0.5 else ['dif']
-	logger.info('done bayes class '+lib)
+	logger.info('done bayes class '+inference_conf.lib)
 	
 	# ABC mean inference.
-	tmp_res_dict = calc_abc_mean_stats(df_sort=df_sort, b_num_top=b_num_top) 
+	tmp_res_dict = calc_abc_mean_stats(df_sort, inference_conf.number_top, general_conf.available_models) 
 	res_dict.update(tmp_res_dict)
-	logger.info('done ABC mean '+lib)
-	if not clean_run:
+	logger.info('done ABC mean '+inference_conf.lib)
+	if not general_conf.clean_run and inference_conf.advanced:
 		
 		#ABC ridge and lasso inference.
-		tmp_res_dict = calc_abc_ridge_stats(df_sort=df_sort,df_meta=df_meta,b_num_top=b_num_top)
+		tmp_res_dict = calc_abc_ridge_stats(df_sort=df_sort,df_meta=df_meta,b_num_top=inference_conf.number_top)
 		res_dict.update(tmp_res_dict)
-		logger.info('done ABC ridge '+lib)
+		logger.info('done ABC ridge '+inference_conf.lib)
 
 		#nn
 		tmp_res_dict = nn_class_and_reg(df=df,df_meta=df_meta,
-										models_list=models_list,
+										models_list=general_conf.available_models,
 										num_epochs = 200,
-										batch_size=4096,verbose=verbose)
+										batch_size=4096,verbose=general_conf.verbose)
 		res_dict.update(tmp_res_dict)
-		logger.info('done nn class. and reg. '+lib)
-
-
+		logger.info('done nn class. and reg. '+inference_conf.lib)
 	df_res = pd.DataFrame(res_dict)
 	df_res = df_res.reindex(sorted(df_res.columns), axis=1)
-	df_res.to_csv(csv_out_path+lib+'_res.csv')
-	logger.info(f'Done {lib}. Res file written to {csv_out_path+lib+"_res.csv"}')
+	df_res_file = os.path.join(general_conf.results_path, f'{inference_conf.lib}_res.csv')
+	df_res.to_csv(df_res_file)
+	logger.info(f'Done {inference_conf.lib}. Res file written to {df_res_file}')
 	return
 

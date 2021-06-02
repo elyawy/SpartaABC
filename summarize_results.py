@@ -10,20 +10,28 @@ import pandas as pd
 
 def remove_files(res_path,to_remove):
 	for i in to_remove:
-		os.remove(f'{res_path}{i}')
+		os.remove(os.path.join(res_path, i))
 
 
-def get_stats(results_file_path, file_name, minIR, maxIR, minAI, maxAI, msa_path, clean_run, verbose=1, chosen_model_field_name='bayes_class',
-			  rl_template='m_@@@_RL', ir_template='m_@@@_IR', ai_template='m_@@@_AIR', 
-			  dr_template='m_@@@_DR', ad_template='m_@@@_ADR'):
+def get_stats(general_conf, result_file_name):
 	'''
 	Organize the results of the inference step in a summary file
 	'''
-	df = pd.read_csv(results_file_path+file_name)
+	res_dir = general_conf.results_path
 
-	if clean_run:
-		remove_files(results_file_path, to_remove=[
-			file_name,
+	chosen_model_field_name='bayes_class'
+	rl_template='m_@@@_RL'
+	ir_template='m_@@@_IR'
+	ai_template='m_@@@_AIR'
+	dr_template='m_@@@_DR'
+	ad_template='m_@@@_ADR'
+
+
+	df = pd.read_csv(os.path.join(res_dir, result_file_name))
+
+	if general_conf.clean_run:
+		remove_files(res_dir, to_remove=[
+			result_file_name,
 			"SpartaABC_msa_corrected_iddif.posterior_params",
 			"SpartaABC_msa_corrected_ideq.posterior_params"
 		])
@@ -38,6 +46,7 @@ def get_stats(results_file_path, file_name, minIR, maxIR, minAI, maxAI, msa_path
 	ir_field_name = ir_template.replace('@@@', 'eq')
 	ai_field_name = ai_template.replace('@@@', 'eq')
 	
+
 	stats.update({'SIM RL': df[rl_field_name].values[0],
 				  'SIM R_ID': df[ir_field_name].values[0]*2,
 				  'SIM A_ID': df[ai_field_name].values[0],
@@ -66,7 +75,7 @@ def get_stats(results_file_path, file_name, minIR, maxIR, minAI, maxAI, msa_path
 				('A_D', df[ad_field_name].values[0])]
 
 	# if verbose!=0:
-	os.system('cls||clear')
+	# os.system('cls||clear')
 	print("\033[1m" + "Results:" + "\033[0m")
 	print(f"Chosen model is: \033[1m{stats['chosen model']}\033[0m")
 	print('+------------------------+	+------------------------+')
@@ -84,8 +93,7 @@ def get_stats(results_file_path, file_name, minIR, maxIR, minAI, maxAI, msa_path
 	print('+-----+------------------+')
 
 
-
-	pd.DataFrame(stats.items()).sort_values(by=0).to_csv(results_file_path+'sum_res.csv', header=False, index=False)
+	pd.DataFrame(stats.items()).sort_values(by=0).to_csv(os.path.join(res_dir, 'sum_res.csv'), header=False, index=False)
 	return stats
 
 

@@ -78,11 +78,12 @@ def get_sparta_config():
 
 class general_config:
 
-	def __init__(self,pipeline_path, results_path, tree_file_name, msa_file_name, skip_config, clean_run, verbose, op_sys):
+	def __init__(self,pipeline_path, results_path, tree_file_name, msa_file_name, available_models, skip_config, clean_run, verbose, op_sys):
 		self.pipeline_path = pipeline_path
 		self.results_path = results_path
 		self.msa_file_name = msa_file_name
 		self.tree_file_name = tree_file_name
+		self.available_models = available_models
 		self.skip_config = skip_config
 		self.clean_run = clean_run
 		self.verbose = verbose
@@ -104,8 +105,11 @@ class correction_config:
 
 
 class inference_config:
-	def __init__(self, number_top):
+	def __init__(self, lib, number_top, size_threshold):
+		self.lib = lib
 		self.number_top = number_top
+		self.size_threshold = size_threshold
+		self.advanced = False
 
 
 if __name__ == "__main__":

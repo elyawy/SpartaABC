@@ -28,10 +28,9 @@ def create_sims(general_conf, simulations_conf):
 	logger.debug('Inside create_sims function.')
 	res_dir = general_conf.results_path
 	cwd = general_conf.pipeline_path
-	model_types = ["eq", "dif"] # eq->SIM , dif->RIM
 
 	logger.info('Writing conf files.')
-	for model in model_types:
+	for model in general_conf.available_models:
 		sparta_config = get_sparta_config()
 		# edit relevant config parameters
 		sparta_config["_numSimulations"] = str(simulations_conf.simulations_num)
@@ -56,7 +55,7 @@ def create_sims(general_conf, simulations_conf):
 			
 	stat = "didn't run"
 	# execute spartaABC c++ program for all models(SIM,RIM).
-	for model in model_types:
+	for model in general_conf.available_models:
 		stat = run_sparta_abc(exe_path=os.path.join(cwd,'SpartaABC'), conf_path=os.path.join(res_dir,f'_{model}.conf'))
 		logger.info(f"ran {os.path.join(cwd,'SpartaABC')},\n conf_path={os.path.join(res_dir,f'_{model}.conf')},\n stat={stat}")
 
