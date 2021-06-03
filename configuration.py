@@ -75,7 +75,8 @@ def get_sparta_config():
 
 	return sparta_config
 
-
+# configuration classes should be used as singleton, so do not change anything inside after instanciation in main.
+# TODO: change to hidden members and add getters.
 class general_config:
 
 	def __init__(self,pipeline_path, results_path, tree_file_name, msa_file_name, available_models, skip_config, clean_run, verbose, op_sys):
@@ -109,7 +110,8 @@ class inference_config:
 		self.lib = lib
 		self.number_top = number_top
 		self.size_threshold = size_threshold
-		self.advanced = False
+		
+		self.advanced = True # Enable neural network and regression when True.
 
 
 if __name__ == "__main__":

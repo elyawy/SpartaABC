@@ -111,7 +111,7 @@ def pipeline(general_conf,simulations_conf,correction_conf,inference_conf):
 	
 	# return inference results summary.
 	sumres.get_stats(general_conf,result_file_name='msa_corrected_res.csv')
-	
+
 	return
 
 
@@ -171,6 +171,7 @@ def pipeline_click(path,msaf,trf,ver,minr,maxr, bn,
 	model_list = ['eq', 'dif'] # eq->SIM , dif->RIM
 	lib = "msa_corrected"
 	size_threshold = 1E6
+
 
 	general_conf = general_config(pipeline_path, path , trf, msaf, model_list ,skip_config, clean_run, ver ,op_sys)
 	simulations_conf = simulations_config(nsim, nburnin, minr, maxr, numalign)
